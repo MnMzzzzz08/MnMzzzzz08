@@ -1,0 +1,10 @@
+openai
+pydantic
+pydantic_settings
+python-dotenv
+pyannote-audio
+ffmpeg
+uv
+langchain
+langgraph
+langchain_openai
