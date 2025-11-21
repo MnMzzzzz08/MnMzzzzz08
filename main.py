@@ -74,12 +74,25 @@ async def transcribe(file: UploadFile = File(...), prompt: str = None):
         if not prompt:
             prompt = (
                 "You are a transcription assistant. You are given an audio file. "
-                "Please transcribe the speech and identify speakers clearly."
+                "Please transcribe the speech and identify speakers clearly. "
+                "Return the transcription in the original language, "
+                "with clean line breaks and readable formatting. "
+                "Do NOT translate the text."
             )
         
         transcription = process_audio_with_chat(temp_path, prompt)
+
+        # Clean formatting: replace escaped newlines/tabs with real characters
+        clean_transcription = (
+            transcription.replace("\\n", "\n")
+                         .replace("\\t", "\t")
+                         .strip()
+        )
         
-        return {"transcription": transcription, "status": "success"}
+        return {
+            "transcription": clean_transcription,
+            "status": "success"
+        }
     
     finally:
         # Delete temp file
