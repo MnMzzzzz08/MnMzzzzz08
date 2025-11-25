@@ -75,13 +75,16 @@ async def transcribe(file: UploadFile = File(...), prompt: str = None):
         if not prompt:
             prompt = (
                 "You are a transcription assistant. Transcribe the audio file and identify each speaker. "
-                "Format the output with clear speaker labels as follows:\n\n"
-                "Speaker 1: [their dialogue]\n\n"
-                "Speaker 2: [their dialogue]\n\n"
-                "Speaker 3: [their dialogue]\n\n"
-                "And so on for each speaker. Each time a speaker changes, start a new line with their label. "
-                "Transcribe in the original language without translation. "
-                "Use consistent numbering for the same speaker throughout the conversation."
+                "Format the output like a movie script with clear speaker labels:\n\n"
+                "Speaker 1: [their complete dialogue]\n\n"
+                "Speaker 2: [their complete dialogue]\n\n"
+                "Speaker 1: [their dialogue when they speak again]\n\n"
+                "Rules:\n"
+                "- Each speaker gets their own line starting with 'Speaker X:' followed by their dialogue\n"
+                "- Use consistent numbering for the same speaker throughout\n"
+                "- Add a blank line between each speaker's turn\n"
+                "- Transcribe in the original language without translation\n"
+                "- Make it clean and readable like a script"
             )
         
         transcription = process_audio_with_chat(temp_path, prompt)
@@ -93,19 +96,27 @@ async def transcribe(file: UploadFile = File(...), prompt: str = None):
                          .strip()
         )
         
-        # Add proper spacing between speakers
+        # Format like a movie script with proper spacing
         lines = clean_transcription.split('\n')
         formatted_lines = []
         
         for line in lines:
             line = line.strip()
-            if line:  # Only add non-empty lines
-                formatted_lines.append(line)
+            if line:  # Only process non-empty lines
+                # Check if line starts with speaker label
+                if line.startswith('Speaker') or line.startswith('('):
+                    formatted_lines.append(line)
+                else:
+                    # If it's continuation text, add it to previous line
+                    if formatted_lines:
+                        formatted_lines[-1] += ' ' + line
+                    else:
+                        formatted_lines.append(line)
         
-        # Join with double newlines for spacing between speakers
+        # Join with double newlines for clean script formatting
         formatted_transcription = '\n\n'.join(formatted_lines)
         
-        # Return with proper UTF-8 encoding
+        # Return as plain text for easy PDF conversion
         return JSONResponse(
             content={
                 "transcription": formatted_transcription,
