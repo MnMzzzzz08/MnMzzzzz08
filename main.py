@@ -3,7 +3,7 @@ from dotenv import load_dotenv
 import os
 from pathlib import Path
 from fastapi import FastAPI, UploadFile, File
-from fastapi.responses import JSONResponse
+from fastapi.responses import JSONResponse, PlainTextResponse
 from langchain_openai import ChatOpenAI
 from langchain_core.messages import HumanMessage
 
@@ -89,31 +89,18 @@ async def transcribe(file: UploadFile = File(...), prompt: str = None):
         
         transcription = process_audio_with_chat(temp_path, prompt)
 
-        # Clean formatting: replace escaped newlines/tabs with real characters
-        clean_transcription = (
-            transcription.replace("\\n", "\n")
-                         .replace("\\t", "\t")
-                         .strip()
-        )
+        # The transcription already comes with \n characters
+        # Split by \n to get individual speaker lines
+        lines = transcription.split('\\n')
         
-        # Format like a movie script with proper spacing
-        lines = clean_transcription.split('\n')
+        # Clean and format each line
         formatted_lines = []
-        
         for line in lines:
             line = line.strip()
-            if line:  # Only process non-empty lines
-                # Check if line starts with speaker label
-                if line.startswith('Speaker') or line.startswith('('):
-                    formatted_lines.append(line)
-                else:
-                    # If it's continuation text, add it to previous line
-                    if formatted_lines:
-                        formatted_lines[-1] += ' ' + line
-                    else:
-                        formatted_lines.append(line)
+            if line:  # Only keep non-empty lines
+                formatted_lines.append(line)
         
-        # Join with double newlines for clean script formatting
+        # Join with actual newlines (double newline for spacing between speakers)
         formatted_transcription = '\n\n'.join(formatted_lines)
         
         # Return as plain text for easy PDF conversion
@@ -123,6 +110,59 @@ async def transcribe(file: UploadFile = File(...), prompt: str = None):
                 "status": "success"
             },
             media_type="application/json; charset=utf-8"
+        )
+    
+    finally:
+        # Delete temp file
+        if os.path.exists(temp_path):
+            os.remove(temp_path)
+
+# New endpoint that returns plain text (perfect for PDF conversion)
+@app.post("/transcribe-text", response_class=PlainTextResponse)
+async def transcribe_text(file: UploadFile = File(...), prompt: str = None):
+    temp_path = f"temp_{file.filename}"
+    
+    try:
+        # Save uploaded file
+        with open(temp_path, "wb") as f:
+            f.write(await file.read())
+        
+        # Use default prompt if none provided
+        if not prompt:
+            prompt = (
+                "You are a transcription assistant. Transcribe the audio file and identify each speaker. "
+                "Format the output like a movie script with clear speaker labels:\n\n"
+                "Speaker 1: [their complete dialogue]\n\n"
+                "Speaker 2: [their complete dialogue]\n\n"
+                "Speaker 1: [their dialogue when they speak again]\n\n"
+                "Rules:\n"
+                "- Each speaker gets their own line starting with 'Speaker X:' followed by their dialogue\n"
+                "- Use consistent numbering for the same speaker throughout\n"
+                "- Add a blank line between each speaker's turn\n"
+                "- Transcribe in the original language without translation\n"
+                "- Make it clean and readable like a script"
+            )
+        
+        transcription = process_audio_with_chat(temp_path, prompt)
+
+        # The transcription already comes with \n characters
+        # Split by \n to get individual speaker lines
+        lines = transcription.split('\\n')
+        
+        # Clean and format each line
+        formatted_lines = []
+        for line in lines:
+            line = line.strip()
+            if line:  # Only keep non-empty lines
+                formatted_lines.append(line)
+        
+        # Join with actual newlines (double newline for spacing between speakers)
+        formatted_transcription = '\n\n'.join(formatted_lines)
+        
+        # Return as plain text with UTF-8 encoding
+        return PlainTextResponse(
+            content=formatted_transcription,
+            media_type="text/plain; charset=utf-8"
         )
     
     finally:
