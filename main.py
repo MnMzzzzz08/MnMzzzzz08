@@ -3,6 +3,7 @@ from dotenv import load_dotenv
 import os
 from pathlib import Path
 from fastapi import FastAPI, UploadFile, File
+from fastapi.responses import JSONResponse
 from langchain_openai import ChatOpenAI
 from langchain_core.messages import HumanMessage
 
@@ -66,6 +67,7 @@ async def transcribe(file: UploadFile = File(...), prompt: str = None):
     temp_path = f"temp_{file.filename}"
     
     try:
+        # Save uploaded file
         with open(temp_path, "wb") as f:
             f.write(await file.read())
         
@@ -91,10 +93,26 @@ async def transcribe(file: UploadFile = File(...), prompt: str = None):
                          .strip()
         )
         
-        return {
-            "transcription": clean_transcription,
-            "status": "success"
-        }
+        # Add proper spacing between speakers
+        lines = clean_transcription.split('\n')
+        formatted_lines = []
+        
+        for line in lines:
+            line = line.strip()
+            if line:  # Only add non-empty lines
+                formatted_lines.append(line)
+        
+        # Join with double newlines for spacing between speakers
+        formatted_transcription = '\n\n'.join(formatted_lines)
+        
+        # Return with proper UTF-8 encoding
+        return JSONResponse(
+            content={
+                "transcription": formatted_transcription,
+                "status": "success"
+            },
+            media_type="application/json; charset=utf-8"
+        )
     
     finally:
         # Delete temp file
