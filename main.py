@@ -8,7 +8,6 @@ from langchain_core.messages import HumanMessage
 
 load_dotenv()
 
-
 print(os.getenv("OPENAI_API_KEY"))
 
 # Initialize ChatOpenAI model
@@ -73,11 +72,14 @@ async def transcribe(file: UploadFile = File(...), prompt: str = None):
         # Use default prompt if none provided
         if not prompt:
             prompt = (
-                "You are a transcription assistant. You are given an audio file. "
-                "Please transcribe the speech and identify speakers clearly. "
-                "Return the transcription in the original language, "
-                "with clean line breaks and readable formatting. "
-                "Do NOT translate the text."
+                "You are a transcription assistant. Transcribe the audio file and identify each speaker. "
+                "Format the output with clear speaker labels as follows:\n\n"
+                "Speaker 1: [their dialogue]\n\n"
+                "Speaker 2: [their dialogue]\n\n"
+                "Speaker 3: [their dialogue]\n\n"
+                "And so on for each speaker. Each time a speaker changes, start a new line with their label. "
+                "Transcribe in the original language without translation. "
+                "Use consistent numbering for the same speaker throughout the conversation."
             )
         
         transcription = process_audio_with_chat(temp_path, prompt)
