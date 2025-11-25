@@ -159,6 +159,8 @@ async def transcribe_text(file: UploadFile = File(...), prompt: str = None):
         # Join with actual newlines (double newline for spacing between speakers)
         formatted_transcription = '\n\n'.join(formatted_lines)
         
+        print(formatted_transcription)
+        
         # Return as plain text with UTF-8 encoding
         return PlainTextResponse(
             content=formatted_transcription,
